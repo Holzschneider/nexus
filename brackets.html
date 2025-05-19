@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nexus Bracket</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    padding: 20px;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+}
+
+.bracket {
+    border-collapse: collapse;
+    margin: auto;
+}
+
+.bracket td {
+    position: relative;
+    padding: 8px 12px;
+    text-align: center;
+    vertical-align: middle;
+    background: #fff;
+    border: 1px solid #444;
+    min-width: 140px;
+}
+
+.bracket td:not(:first-child) {
+    border-left: none;
+}
+
+.round-1 { background: #f9f9f9; }
+.round-2 { background: #e9e9e9; }
+.round-3 { background: #d9d9d9; }
+.round-4 { background: #ccc; }
+
+#resetBtn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: none;
+}
+
+#resetBtn.show {
+    display: block;
+}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body x-data="bracketApp()" x-init="resetView()" @wheel.prevent="onWheel" @mousedown="startPan" @mousemove="pan" @mouseup="endPan" @mouseleave="endPan" @touchstart="startPan" @touchmove="pan" @touchend="endPan" @touchcancel="endPan">
+<div id="bracketWrapper" x-ref="wrapper" style="display:inline-block;" :style="`transform: translate(${offsetX}px, ${offsetY}px) scale(${zoom}); transform-origin: 0 0;`">
+<table class="bracket"></table>
+</div>
+<button id="resetBtn" :class="{'show': zoom !== 1}" @click="resetView">100%</button>
+<script>
+function buildBracket(playerCount) {
+    const rounds = Math.ceil(Math.log2(playerCount));
+    const bracketSize = Math.pow(2, rounds);
+    const players = [];
+    for (let i = 1; i <= playerCount; i++) {
+        players.push(`Player ${i}`);
+    }
+    for (let i = playerCount + 1; i <= bracketSize; i++) {
+        players.push('BYE');
+    }
+    const rows = bracketSize / 2;
+    const table = document.querySelector('.bracket');
+    const rowEls = [];
+    for (let r = 0; r < rows; r++) {
+        const tr = document.createElement('tr');
+        table.appendChild(tr);
+        rowEls.push(tr);
+    }
+    // first round pairings
+    for (let i = 0; i < rows; i++) {
+        const td = document.createElement('td');
+        td.className = 'match round-1';
+        td.textContent = players[i*2] + ' vs ' + players[i*2+1];
+        rowEls[i].appendChild(td);
+    }
+    // subsequent rounds
+    for (let r = 2; r <= rounds; r++) {
+        const matchCount = bracketSize / Math.pow(2, r);
+        const span = Math.pow(2, r-1);
+        for (let m = 0; m < matchCount; m++) {
+            const td = document.createElement('td');
+            td.className = 'match round-' + r;
+            td.rowSpan = span;
+            td.textContent = r === rounds ? 'Winner' : 'Advances';
+            rowEls[m*span].appendChild(td);
+        }
+    }
+}
+const params = new URLSearchParams(window.location.search);
+let count = parseInt(params.get('players'), 10);
+if (isNaN(count) || count < 2) {
+    count = 8;
+}
+buildBracket(count);
+
+function bracketApp() {
+    return {
+        zoom: 1,
+        offsetX: 0,
+        offsetY: 0,
+        startX: 0,
+        startY: 0,
+        panning: false,
+        pinching: false,
+        pinchStart: 0,
+        onWheel(e) {
+            const delta = e.deltaY || e.wheelDelta;
+            this.zoom += delta > 0 ? -0.1 : 0.1;
+            this.zoom = Math.min(Math.max(this.zoom, 0.2), 3);
+        },
+        startPan(e) {
+            if (e.touches && e.touches.length === 2) {
+                this.pinching = true;
+                this.pinchStart = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            } else {
+                const point = e.touches ? e.touches[0] : e;
+                this.panning = true;
+                this.startX = point.clientX - this.offsetX;
+                this.startY = point.clientY - this.offsetY;
+            }
+        },
+        pan(e) {
+            if (this.pinching && e.touches && e.touches.length === 2) {
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const diff = dist - this.pinchStart;
+                this.zoom += diff / 200;
+                this.zoom = Math.min(Math.max(this.zoom, 0.2), 3);
+                this.pinchStart = dist;
+            } else if (this.panning) {
+                const point = e.touches ? e.touches[0] : e;
+                this.offsetX = point.clientX - this.startX;
+                this.offsetY = point.clientY - this.startY;
+            }
+        },
+        endPan() {
+            this.panning = false;
+            this.pinching = false;
+        },
+        resetView() {
+            this.zoom = 1;
+            const rect = this.$refs.wrapper.getBoundingClientRect();
+            this.offsetX = (window.innerWidth - rect.width) / 2;
+            this.offsetY = (window.innerHeight - rect.height) / 2;
+        }
+    }
+}
+</script>
+</body>
+</html>
