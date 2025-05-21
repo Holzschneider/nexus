@@ -30,23 +30,56 @@
       height: 40vh; /* Default height, will be overridden dynamically if needed */
       padding-top: 5vh; /* Scaled down by 50% from 10vh */
       padding-bottom: 5vh; /* Scaled down by 50% from 10vh */
-      width: 200px; /* Match the width of matches */
+      width: 250px; /* Increased width for player names */
+    }
+
+    /* Visual separation between columns - centered between columns */
+    .bracket-column:not(:first-child)::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -20px; /* Half of the margin-right to center it */
+      border-left: 1px dashed #e6e6e6; /* Lighter dashed line */
+    }
+
+    .column-name {
+      position: fixed;
+      bottom: 20px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+      font-style: italic;
+      background-color: rgba(255, 255, 255, 0.6);
+      padding: 8px 12px;
+      z-index: 100;
+      transform: translateX(-50%); /* Center the name under the column */
+      white-space: nowrap;
+    }
+
+    .column-name .check-mark {
+      display: none;
+      color: #4CAF50;
+      margin-left: 5px;
+    }
+
+    .column-name .check-mark.visible {
+      display: inline;
     }
 
     .match {
       position: relative;
-      width: 200px;
+      width: 250px; /* Increased width to match column width */
       margin: 10px 0; /* Increased vertical margin for better spacing */
       background-color: white;
       border-radius: 5px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       overflow: hidden;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: box-shadow 0.3s ease;
     }
 
     .match:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
     }
 
     .player {
@@ -54,6 +87,9 @@
       border-bottom: 1px solid #eee;
       cursor: pointer;
       transition: background-color 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .player:hover {
@@ -207,7 +243,9 @@
 <h1 class="title">Nexus Tournament Bracket</h1>
 <div id="tournament-info" class="tournament-info">
   <p>Single elimination tournament bracket. Number of players: <span id="player-count">8</span></p>
-  <p>Use the URL parameter "?players=X" to change the number of players. Supports any number of players (not just powers of 2).</p>
+  <p>Use the URL parameter "?players=X" to change the number of players (e.g., "?players=5").</p>
+  <p>Or use a comma-separated list of player names (e.g., "?players=Philipp,Sebastian,Andreas,Max,Dennis").</p>
+  <p>Supports any number of players (not just powers of 2).</p>
   <p>Drag to pan, use mouse wheel or pinch to zoom.</p>
 </div>
 
@@ -396,18 +434,44 @@
 
 
   document.addEventListener('DOMContentLoaded', function() {
-    // Get the number of players from the URL query parameter, default to 8
+    // Get the players from the URL query parameter, default to 8
     const urlParams = new URLSearchParams(window.location.search);
-    let numPlayers = parseInt(urlParams.get('players')) || 8;
+    const playersParam = urlParams.get('players') || '8';
+
+    let numPlayers = 8;
+    let playerNames = [];
+
+    // Check if the players parameter is a number or a comma-separated list
+    if (playersParam.includes(',')) {
+      // It's a comma-separated list of player names
+      playerNames = playersParam.split(',');
+      numPlayers = playerNames.length;
+    } else {
+      // It's a number
+      numPlayers = parseInt(playersParam) || 8;
+      // Create default player names (Player 1, Player 2, etc.)
+      for (let i = 1; i <= numPlayers; i++) {
+        playerNames.push(`Player ${i}`);
+      }
+    }
 
     // Ensure the number of players is at least 2
     numPlayers = Math.max(2, numPlayers);
+    if (playerNames.length < numPlayers) {
+      // Add more default player names if needed
+      for (let i = playerNames.length + 1; i <= numPlayers; i++) {
+        playerNames.push(`Player ${i}`);
+      }
+    } else if (playerNames.length > numPlayers) {
+      // Trim the player names array if needed
+      playerNames = playerNames.slice(0, numPlayers);
+    }
 
     // Update player count display
     document.getElementById('player-count').textContent = numPlayers;
 
     // Generate the bracket
-    generateBracket(numPlayers);
+    generateBracket(numPlayers, playerNames);
 
     // Prevent default touch behavior on the zoom container to avoid conflicts
     const zoomContainer = document.querySelector('.zoom-container');
@@ -533,6 +597,37 @@
     // Update the player text in the next match
     const playerName = winnerPlayer.textContent;
     nextMatchPlayers[playerIndex].textContent = playerName;
+
+    // Check if all matches in this round have winners
+    checkRoundCompletion(round);
+  }
+
+  // Function to check if all matches in a round have winners and update the check mark
+  function checkRoundCompletion(round) {
+    // Get all matches in this round
+    const matches = document.querySelectorAll(`.match[data-round="${round}"]`);
+    let allCompleted = true;
+
+    // Check if each match has a winner
+    matches.forEach(match => {
+      const winners = match.querySelectorAll('.player.winner');
+      if (winners.length === 0) {
+        allCompleted = false;
+      }
+    });
+
+    // Update the check mark visibility
+    const columnName = document.querySelector(`.column-name[data-round="${round}"]`);
+    if (columnName) {
+      const checkMark = columnName.querySelector('.check-mark');
+      if (checkMark) {
+        if (allCompleted) {
+          checkMark.classList.add('visible');
+        } else {
+          checkMark.classList.remove('visible');
+        }
+      }
+    }
   }
 
   // Function to clear the next match slot when no winner is selected
@@ -554,13 +649,39 @@
     const nextMatchPlayers = nextMatch.querySelectorAll('.player');
     if (nextMatchPlayers.length <= playerIndex) return;
 
-    // Reset the player text in the next match to the default
-    const sourceMatchNum = parseInt(match.querySelector('.match-number').textContent.replace('Match ', ''));
-    nextMatchPlayers[playerIndex].textContent = `Winner of Match ${sourceMatchNum}`;
+    // Check if all matches in this round have winners (will update to false)
+    checkRoundCompletion(round);
+
+    // Check if the next match is the champion round (last round)
+    const nextRoundNum = parseInt(nextMatch.dataset.round);
+    const numRounds = document.querySelectorAll('.bracket-column').length;
+    const isChampionRound = nextRoundNum === numRounds - 1;
+
+    if (isChampionRound) {
+      // If this is the champion round, restore the "Champion" placeholder with trophy
+      nextMatchPlayers[playerIndex].innerHTML = `Champion <span class="winner-trophy">🏆</span>`;
+    } else {
+      // Otherwise, reset the player text in the next match to the default with specific round name
+      const sourceMatchNum = parseInt(match.querySelector('.match-number').textContent.replace('Match ', ''));
+      const sourceRound = parseInt(match.dataset.round);
+
+      // Get the round name for more specific winner text
+      let roundName;
+      const numRounds = document.querySelectorAll('.bracket-column').length;
+      if (sourceRound === numRounds - 2) {
+        roundName = "Finals";
+      } else if (sourceRound === numRounds - 3) {
+        roundName = "Semi-Finals";
+      } else {
+        roundName = `Round ${sourceRound + 1}`;
+      }
+
+      nextMatchPlayers[playerIndex].textContent = `Winner of ${roundName} Match ${sourceMatchNum}`;
+    }
   }
 
   // Function to generate the tournament bracket
-  function generateBracket(numPlayers) {
+  function generateBracket(numPlayers, playerNames = []) {
     const container = document.getElementById('tournament-container');
     container.innerHTML = '';
 
@@ -584,6 +705,25 @@
     for (let round = 0; round < numRounds; round++) {
       const column = document.createElement('div');
       column.className = 'bracket-column';
+      column.dataset.round = round;
+
+      // Add column name (skip for the champion column)
+      if (round !== numRounds - 1) {
+        let columnName;
+        if (round === numRounds - 2) {
+          columnName = "Finals";
+        } else if (round === numRounds - 3) {
+          columnName = "Semi-Finals";
+        } else {
+          columnName = `Round ${round + 1}`;
+        }
+
+        // Create column name element
+        const columnNameElement = document.createElement('div');
+        columnNameElement.className = 'column-name';
+        columnNameElement.innerHTML = columnName + ' <span class="check-mark">✓</span>';
+        columnNameElement.dataset.round = round;
+      }
 
       // Calculate the number of matches in this round
       let numMatches;
@@ -693,12 +833,12 @@
           // First round - create player pairings
           const player1 = document.createElement('div');
           player1.className = 'player';
-          player1.textContent = `Player ${match * 2 + 1}`;
+          player1.textContent = playerNames[match * 2] || `Player ${match * 2 + 1}`;
           player1.addEventListener('click', handlePlayerClick);
 
           const player2 = document.createElement('div');
           player2.className = 'player';
-          player2.textContent = `Player ${match * 2 + 2}`;
+          player2.textContent = playerNames[match * 2 + 1] || `Player ${match * 2 + 2}`;
           player2.addEventListener('click', handlePlayerClick);
 
           matchElement.appendChild(player1);
@@ -749,7 +889,19 @@
               const player1 = document.createElement('div');
               player1.className = 'player';
               const sourceMatchNum = parseInt(sources[0].matchId.substring(sources[0].matchId.indexOf('m') + 1)) + 1;
-              player1.textContent = `Winner of Match ${sourceMatchNum}`;
+              const sourceRound = parseInt(sources[0].matchId.substring(1, sources[0].matchId.indexOf('m')));
+
+              // Get the round name for more specific winner text
+              let roundName;
+              if (sourceRound === numRounds - 2) {
+                roundName = "Finals";
+              } else if (sourceRound === numRounds - 3) {
+                roundName = "Semi-Finals";
+              } else {
+                roundName = `Round ${sourceRound + 1}`;
+              }
+
+              player1.textContent = `Winner of ${roundName} Match ${sourceMatchNum}`;
               player1.addEventListener('click', handlePlayerClick);
               matchElement.appendChild(player1);
             } else {
@@ -760,7 +912,7 @@
               // For the first round with byes, we need to assign player numbers correctly
               // Players with byes start at firstRoundMatches*2+1
               const playerNum = firstRoundMatches * 2 + 1 + (match * 2);
-              player1.textContent = `Player ${playerNum}`;
+              player1.textContent = playerNames[playerNum - 1] || `Player ${playerNum}`;
               player1.addEventListener('click', handlePlayerClick);
               matchElement.appendChild(player1);
             }
@@ -771,7 +923,19 @@
               const player2 = document.createElement('div');
               player2.className = 'player';
               const sourceMatchNum = parseInt(sources[0].matchId.substring(sources[0].matchId.indexOf('m') + 1)) + 1;
-              player2.textContent = `Winner of Match ${sourceMatchNum}`;
+              const sourceRound = parseInt(sources[0].matchId.substring(1, sources[0].matchId.indexOf('m')));
+
+              // Get the round name for more specific winner text
+              let roundName;
+              if (sourceRound === numRounds - 2) {
+                roundName = "Finals";
+              } else if (sourceRound === numRounds - 3) {
+                roundName = "Semi-Finals";
+              } else {
+                roundName = `Round ${sourceRound + 1}`;
+              }
+
+              player2.textContent = `Winner of ${roundName} Match ${sourceMatchNum}`;
               player2.addEventListener('click', handlePlayerClick);
               matchElement.appendChild(player2);
             } else {
@@ -782,7 +946,7 @@
               // For the first round with byes, we need to assign player numbers correctly
               // Players with byes start at firstRoundMatches*2+1
               const playerNum = firstRoundMatches * 2 + 1 + (match * 2 + 1);
-              player2.textContent = `Player ${playerNum}`;
+              player2.textContent = playerNames[playerNum - 1] || `Player ${playerNum}`;
               player2.addEventListener('click', handlePlayerClick);
               matchElement.appendChild(player2);
             }
@@ -791,13 +955,37 @@
             const player1 = document.createElement('div');
             player1.className = 'player';
             const sourceMatchNum1 = parseInt(sources[0].matchId.substring(sources[0].matchId.indexOf('m') + 1)) + 1;
-            player1.textContent = `Winner of Match ${sourceMatchNum1}`;
+            const sourceRound1 = parseInt(sources[0].matchId.substring(1, sources[0].matchId.indexOf('m')));
+
+            // Get the round name for more specific winner text
+            let roundName1;
+            if (sourceRound1 === numRounds - 2) {
+              roundName1 = "Finals";
+            } else if (sourceRound1 === numRounds - 3) {
+              roundName1 = "Semi-Finals";
+            } else {
+              roundName1 = `Round ${sourceRound1 + 1}`;
+            }
+
+            player1.textContent = `Winner of ${roundName1} Match ${sourceMatchNum1}`;
             player1.addEventListener('click', handlePlayerClick);
 
             const player2 = document.createElement('div');
             player2.className = 'player';
             const sourceMatchNum2 = parseInt(sources[1].matchId.substring(sources[1].matchId.indexOf('m') + 1)) + 1;
-            player2.textContent = `Winner of Match ${sourceMatchNum2}`;
+            const sourceRound2 = parseInt(sources[1].matchId.substring(1, sources[1].matchId.indexOf('m')));
+
+            // Get the round name for more specific winner text
+            let roundName2;
+            if (sourceRound2 === numRounds - 2) {
+              roundName2 = "Finals";
+            } else if (sourceRound2 === numRounds - 3) {
+              roundName2 = "Semi-Finals";
+            } else {
+              roundName2 = `Round ${sourceRound2 + 1}`;
+            }
+
+            player2.textContent = `Winner of ${roundName2} Match ${sourceMatchNum2}`;
             player2.addEventListener('click', handlePlayerClick);
 
             matchElement.appendChild(player1);
@@ -829,6 +1017,70 @@
 
       container.appendChild(column);
     }
+
+    // Add column names to the DOM and position them
+    setTimeout(() => {
+      const columns = document.querySelectorAll('.bracket-column');
+      columns.forEach((column, index) => {
+        const round = parseInt(column.dataset.round);
+
+        // Skip the champion column (last round)
+        if (round === numRounds - 1) {
+          return;
+        }
+
+        const columnRect = column.getBoundingClientRect();
+        const columnName = document.createElement('div');
+        columnName.className = 'column-name';
+
+        // Set the column name based on the round
+        let columnNameText;
+        if (round === numRounds - 2) {
+          columnNameText = "Finals";
+        } else if (round === numRounds - 3) {
+          columnNameText = "Semi-Finals";
+        } else {
+          columnNameText = `Round ${round + 1}`;
+        }
+
+        columnName.innerHTML = columnNameText + ' <span class="check-mark">✓</span>';
+        columnName.dataset.round = round;
+
+        // Position the column name under the center of the column
+        const centerX = columnRect.left + columnRect.width / 2;
+        columnName.style.left = `${centerX}px`;
+
+        document.body.appendChild(columnName);
+      });
+
+      // Update column name positions when zooming or panning
+      const updateColumnNamePositions = () => {
+        const columns = document.querySelectorAll('.bracket-column');
+        const columnNames = document.querySelectorAll('.column-name');
+
+        columns.forEach((column, index) => {
+          const columnRect = column.getBoundingClientRect();
+          const centerX = columnRect.left + columnRect.width / 2;
+          columnNames[index].style.left = `${centerX}px`;
+        });
+      };
+
+      // Add event listeners for zoom and pan events
+      const zoomContainer = document.querySelector('.zoom-container');
+      const zoomContent = document.querySelector('.zoom-content');
+
+      // Use MutationObserver to detect changes to the transform style
+      const observer = new MutationObserver(updateColumnNamePositions);
+      observer.observe(zoomContent, { attributes: true, attributeFilter: ['style'] });
+
+      // Also update positions on window resize
+      window.addEventListener('resize', updateColumnNamePositions);
+
+      // Initialize check marks for all rounds
+      for (let i = 0; i < numRounds; i++) {
+        checkRoundCompletion(i);
+      }
+    }, 100);
 
     // Create curved connectors between match pairings and their next-level match
     // For each match, find its sources and create connectors
