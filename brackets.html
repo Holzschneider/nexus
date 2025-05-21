@@ -15,6 +15,51 @@
       overflow: hidden;
     }
 
+    .info-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 20px;
+      background-color: #4CAF50;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      transition: all 0.2s ease, color 0.3s ease;
+      overflow: hidden;
+    }
+
+    .info-button:hover {
+      top: 20px;
+      right: 20px;
+      width: 400px;
+      height: 200px;
+      border-radius: 5px;
+      justify-content: flex-start;
+      align-items: flex-start;
+      padding: 5px;
+      transform: none;
+      color: white;
+      background-color: white;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    .info-button .question-mark {
+      transition: opacity 0.2s ease;
+    }
+
+    .info-button:hover .question-mark {
+      opacity: 0;
+      position: absolute;
+    }
+
     .tournament-container {
       display: flex;
       justify-content: center;
@@ -50,7 +95,7 @@
       font-weight: bold;
       font-size: 16px;
       font-style: italic;
-      background-color: rgba(255, 255, 255, 0.6);
+      background: transparent;
       padding: 8px 12px;
       z-index: 100;
       transform: translateX(-50%); /* Center the name under the column */
@@ -153,22 +198,41 @@
       font-size: 2.5rem;
     }
 
-    .tournament-info {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #666;
-      background-color: #fff;
-      padding: 15px;
-      border-radius: 5px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
+    .info-content {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      text-align: left;
+      color: #444;
+      width: 100%;
+      display: none;
+      font-size: 0.92rem;
+      font-style: normal;
+      font-weight: normal;
     }
 
-    .tournament-info p {
-      margin: 5px 0;
+    .info-button:hover .info-content {
+      opacity: 0;
+      display: block;
+      transition-delay: 0.3s;
     }
+
+    .info-button:hover:active .info-content,
+    .info-button:hover .info-content {
+      animation: fadeInContent 0.1s ease 0.2s forwards;
+    }
+
+    @keyframes fadeInContent {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    .info-content p {
+      margin: 2px 0;
+    }
+    .info-button:hover  {
+      opacity: 1;
+    }
+
 
     /* Zoom and drag container */
     .zoom-container {
@@ -241,12 +305,17 @@
 </head>
 <body>
 <h1 class="title">Nexus Tournament Bracket</h1>
-<div id="tournament-info" class="tournament-info">
-  <p>Single elimination tournament bracket. Number of players: <span id="player-count">8</span></p>
-  <p>Use the URL parameter "?players=X" to change the number of players (e.g., "?players=5").</p>
-  <p>Or use a comma-separated list of player names (e.g., "?players=Philipp,Sebastian,Andreas,Max,Dennis").</p>
-  <p>Supports any number of players (not just powers of 2).</p>
-  <p>Drag to pan, use mouse wheel or pinch to zoom.</p>
+<div id="info-button" class="info-button">
+  <span class="question-mark">?</span>
+  <div class="info-content">
+    <h2><div style="text-align: center;">Single elimination tournament bracket: <span id="player-count">8</span> players</div></h2>
+    <ul>
+      <li>Use the URL parameter "?players=X" to change the number of players (e.g., "?players=5").</li>
+      <li>Or use a comma-separated list of player names (e.g., "?players=Philipp,Sebastian,Andreas,Max,Dennis").</li>
+      <li>Supports any number of players (not just powers of 2).</li>
+      <li>Drag to pan, use mouse wheel or pinch to zoom.</li>
+    </ul>
+  </div>
 </div>
 
 <div x-data="bracketViewer()"
@@ -434,6 +503,8 @@
 
 
   document.addEventListener('DOMContentLoaded', function() {
+    // No event handlers needed for info button as it now uses CSS hover
+
     // Get the players from the URL query parameter, default to 8
     const urlParams = new URLSearchParams(window.location.search);
     const playersParam = urlParams.get('players') || '8';
@@ -467,9 +538,6 @@
       playerNames = playerNames.slice(0, numPlayers);
     }
 
-    // Update player count display
-    document.getElementById('player-count').textContent = numPlayers;
-
     // Generate the bracket
     generateBracket(numPlayers, playerNames);
 
@@ -481,6 +549,8 @@
       e.preventDefault();
     }, { passive: false });
 
+    // Update player count display
+    document.getElementById('player-count').textContent = numPlayers;
   });
 
 
@@ -598,6 +668,13 @@
     const playerName = winnerPlayer.textContent;
     nextMatchPlayers[playerIndex].textContent = playerName;
 
+    // Check if the player in the next match is already marked as a winner
+    // If so, we need to propagate this change up the bracket
+    if (nextMatchPlayers[playerIndex].classList.contains('winner')) {
+      // Recursively update the next match up the bracket
+      updateNextMatch(nextMatch, nextMatchPlayers[playerIndex]);
+    }
+
     // Check if all matches in this round have winners
     checkRoundCompletion(round);
   }
@@ -649,6 +726,10 @@
     const nextMatchPlayers = nextMatch.querySelectorAll('.player');
     if (nextMatchPlayers.length <= playerIndex) return;
 
+    // Check if the player in the next match is already marked as a winner
+    // If so, we need to clear all matches up the bracket
+    const wasWinner = nextMatchPlayers[playerIndex].classList.contains('winner');
+
     // Check if all matches in this round have winners (will update to false)
     checkRoundCompletion(round);
 
@@ -677,6 +758,14 @@
       }
 
       nextMatchPlayers[playerIndex].textContent = `Winner of ${roundName} Match ${sourceMatchNum}`;
+
+      // If this player was a winner, we need to recursively clear the next match as well
+      if (wasWinner) {
+        // Remove the winner class first to prevent infinite recursion
+        nextMatchPlayers[playerIndex].classList.remove('winner');
+        // Then recursively clear the next match
+        clearNextMatchSlot(nextMatch);
+      }
     }
   }
 
@@ -714,6 +803,8 @@
           columnName = "Finals";
         } else if (round === numRounds - 3) {
           columnName = "Semi-Finals";
+        } else if (round === numRounds - 4) {
+          columnName = "Quarter-Finals";
         } else {
           columnName = `Round ${round + 1}`;
         }
@@ -1039,6 +1130,8 @@
           columnNameText = "Finals";
         } else if (round === numRounds - 3) {
           columnNameText = "Semi-Finals";
+        } else if (round === numRounds - 4) {
+          columnNameText = "Quarter-Finals";
         } else {
           columnNameText = `Round ${round + 1}`;
         }
