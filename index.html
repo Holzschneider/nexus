@@ -1,13 +1,94 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus Tournament System</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/app.js"></script>
+  <style>
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    .button {
+      display: inline-block;
+      background-color: #4CAF50;
+      color: white;
+      padding: 12px 24px;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      margin: 10px;
+      transition: all 0.3s ease;
+    }
+    .button:hover {
+      background-color: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <h1 class="title">Nexus Tournament System</h1>
 
+    <div class="card">
+      <h2>Available Tournament Layouts</h2>
+      <p>Select a tournament layout to get started:</p>
 
+      <div style="text-align: center;" id="tournament-types-container">
+        <!-- Tournament types will be dynamically loaded here -->
+      </div>
+
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          // Load the tournament types dynamically
+          if (typeof TournamentConfig !== 'undefined') {
+            const typesContainer = document.getElementById('tournament-types-container');
+            const types = TournamentConfig.getAvailableTypes();
+
+            types.forEach(type => {
+              const button = document.createElement('a');
+              button.href = `brackets.html?type=${type.id}`;
+              button.className = 'button';
+              button.textContent = type.name;
+              button.title = type.description;
+              typesContainer.appendChild(button);
+            });
+          } else {
+            // Fallback if TournamentConfig is not available
+            const typesContainer = document.getElementById('tournament-types-container');
+            const button = document.createElement('a');
+            button.href = 'brackets.html';
+            button.className = 'button';
+            button.textContent = 'Single Elimination Bracket';
+            typesContainer.appendChild(button);
+          }
+        });
+      </script>
+    </div>
+
+    <div class="card">
+      <h2>Tournament Configuration</h2>
+      <p>You can customize your tournament by adding URL parameters:</p>
+      <ul>
+        <li>Use <code>?type=X</code> to set the tournament type (e.g., <a href="brackets.html?type=single-elimination">brackets.html?type=single-elimination</a>)</li>
+        <li>Use <code>?players=X</code> to set the number of players (e.g., <a href="brackets.html?players=16">brackets.html?players=16</a>)</li>
+        <li>Use a comma-separated list to specify player names (e.g., <a href="brackets.html?players=Alice,Bob,Charlie,Dave">brackets.html?players=Alice,Bob,Charlie,Dave</a>)</li>
+        <li>You can combine parameters (e.g., <a href="brackets.html?type=single-elimination&players=8">brackets.html?type=single-elimination&players=8</a>)</li>
+      </ul>
+    </div>
+  </div>
 </body>
-
 </html>

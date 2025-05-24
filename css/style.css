@@ -1,0 +1,296 @@
+/* Tournament Bracket System Styles */
+
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+  overflow: hidden;
+}
+
+.info-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background-color: #4CAF50;
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 1000;
+  transition: all 0.2s ease, color 0.3s ease;
+  overflow: hidden;
+}
+
+.info-button:hover {
+  top: 20px;
+  right: 20px;
+  width: 400px;
+  height: 200px;
+  border-radius: 5px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 5px;
+  transform: none;
+  color: white;
+  background-color: white;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.info-button .question-mark {
+  transition: opacity 0.2s ease;
+}
+
+.info-button:hover .question-mark {
+  opacity: 0;
+  position: absolute;
+}
+
+.tournament-container {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 20px;
+  min-height: 80vh;
+  width: max-content; /* Ensure it takes as much width as needed */
+}
+
+.bracket-column {
+  position: relative; /* Create positioning context for absolute children */
+  margin-right: 40px;
+  height: 40vh; /* Default height, will be overridden dynamically if needed */
+  padding-top: 5vh; /* Scaled down by 50% from 10vh */
+  padding-bottom: 5vh; /* Scaled down by 50% from 10vh */
+  width: 250px; /* Increased width for player names */
+}
+
+/* Visual separation between columns - centered between columns */
+.bracket-column:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -20px; /* Half of the margin-right to center it */
+  border-left: 1px dashed #e6e6e6; /* Lighter dashed line */
+}
+
+.column-name {
+  position: fixed;
+  bottom: 20px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  font-style: italic;
+  background: transparent;
+  padding: 8px 12px;
+  z-index: 100;
+  transform: translateX(-50%); /* Center the name under the column */
+  white-space: nowrap;
+}
+
+.column-name .check-mark {
+  display: none;
+  color: #4CAF50;
+  margin-left: 5px;
+}
+
+.column-name .check-mark.visible {
+  display: inline;
+}
+
+.match {
+  position: relative;
+  width: 250px; /* Increased width to match column width */
+  margin: 10px 0; /* Increased vertical margin for better spacing */
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.match:hover {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+}
+
+.player {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player:hover {
+  background-color: #f5f5f5;
+}
+
+.player:last-child {
+  border-bottom: none;
+}
+
+.player.winner {
+  background-color: #e8f5e9;
+  font-weight: bold;
+}
+
+.connector {
+  position: absolute;
+  right: -40px;
+  width: 40px;
+  border-top: 2px solid #ccc;
+}
+
+/* We're now using only horizontal connectors with the new positioning */
+.connector.horizontal {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Curved connectors to connect match pairings with the next level */
+.connector-curved {
+  position: absolute;
+  border: none;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.connector-curved path {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 2px;
+}
+
+.match-number {
+  position: absolute;
+  top: -20px;
+  left: 10px;
+  font-size: 12px;
+  color: #999;
+}
+
+.winner-trophy {
+  font-size: 24px;
+  color: gold;
+  margin-left: 10px;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 2.5rem;
+}
+
+.info-content {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-align: left;
+  color: #444;
+  width: 100%;
+  display: none;
+  font-size: 0.92rem;
+  font-style: normal;
+  font-weight: normal;
+}
+
+.info-button:hover .info-content {
+  opacity: 0;
+  display: block;
+  transition-delay: 0.3s;
+}
+
+.info-button:hover:active .info-content,
+.info-button:hover .info-content {
+  animation: fadeInContent 0.1s ease 0.2s forwards;
+}
+
+@keyframes fadeInContent {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.info-content p {
+  margin: 2px 0;
+}
+.info-button:hover  {
+  opacity: 1;
+}
+
+
+/* Zoom and drag container */
+.zoom-container {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 150px);
+  overflow: hidden;
+  cursor: grab;
+}
+
+.zoom-container.grabbing {
+  cursor: grabbing;
+}
+
+.zoom-content {
+  transform-origin: 0 0;
+  position: absolute;
+  /* Removed transition for more responsive panning */
+}
+
+/* Reset zoom button */
+.reset-zoom-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  z-index: 1000;
+}
+
+.reset-zoom-btn:hover {
+  background-color: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.reset-zoom-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 768px) {
+  .tournament-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bracket-column {
+    margin-right: 0;
+    margin-bottom: 20px;
+    width: 100%;
+  }
+
+  .match {
+    width: 100%;
+  }
+
+  .connector {
+    display: none;
+  }
+}
